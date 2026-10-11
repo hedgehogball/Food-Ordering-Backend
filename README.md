@@ -1,6 +1,6 @@
 # 链家烧烤 · 独立后端
 
-微信小程序点餐后端，支持登录、01～36 桌同桌多人点餐、到店自取、厨房接单、门店收银、营业设置和经营统计。使用 Node.js 22+、MySQL 5.7 / 8.0，可独立部署到微信云托管，HTTP 端口默认 **8080**。
+微信小程序点餐后端，支持登录、01～36 桌同桌多人点餐、到店自取、厨房接单、门店收银、营业设置和经营统计。使用 Node.js 22.9+、MySQL 5.7 / 8.0，可独立部署到微信云托管，HTTP 端口默认 **8080**。
 
 从 [Food-Ordering-Mini-Program](https://github.com/hedgehogball/Food-Ordering-Mini-Program) 的 [08a79b1](https://github.com/hedgehogball/Food-Ordering-Mini-Program/commit/08a79b187b02266e9a79908c89661a04094bf59a) 提取，业务程序放入 `src`，不依赖小程序目录或云函数 SDK。本仓库提供数据库结构与默认初始化数据，不包含线上数据库备份。当前使用到店收款，未接入微信在线支付；厨房小票有持久化任务队列与人工打印登记，尚未连接打印机。
 
@@ -27,7 +27,7 @@ Dockerfile            微信云托管独立构建入口
 
 ## 本地启动（Windows PowerShell）
 
-安装 Node.js 22 或更高版本及 MySQL，先建立独立开发数据库 `food_ordering`（字符集 `utf8mb4`），不要共用生产库。数据库创建与权限见 [数据库说明](database/README.md)。
+安装 Node.js 22.9 或更高版本及 MySQL，先建立独立开发数据库 `food_ordering`（字符集 `utf8mb4`），不要共用生产库。数据库创建与权限见 [数据库说明](database/README.md)。本地脚本使用的 `--env-file-if-exists` 参数从 [Node.js 22.9 开始提供](https://nodejs.org/download/release/v22.21.0/docs/api/cli.html#--env-file-if-existsfile)。
 
 ```powershell
 git clone https://github.com/hedgehogball/Food-Ordering-Backend.git

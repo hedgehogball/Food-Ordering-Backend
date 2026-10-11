@@ -11,5 +11,5 @@
     "test:integration": "node scripts/test-integration.js"
   },
   "dependencies": { "mysql2": "3.24.5" },
-  "engines": { "node": ">=22" }
+  "engines": { "node": ">=22.9.0" }
 }
