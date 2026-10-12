@@ -2,7 +2,7 @@
 function database() {
   const values = new Map(); const versions = new Map(); let conflicts = 0;
   const clone = value => value === undefined ? undefined : structuredClone(value);
-  for (let n = 1; n <= 36; n++) values.set('dining_tables/' + String(n).padStart(2, '0'), { sessionId: '' });
+  for (let n = 1; n <= 24; n++) values.set('dining_tables/' + String(n).padStart(2, '0'), { sessionId: '' });
   return {
     values,
     get conflicts() { return conflicts; },

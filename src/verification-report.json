@@ -1,0 +1,22 @@
+{
+  "verifiedAt": "2026-10-12T12:20:03.512936+00:00",
+  "tableCount": 24,
+  "unitTests": {
+    "passed": 183,
+    "total": 183
+  },
+  "mysqlIntegration": {
+    "passed": true,
+    "scope": "独立测试数据库"
+  },
+  "officialPreview": {
+    "compiled": true,
+    "packageBytes": 1284578
+  },
+  "cloudBackup": {
+    "status": "success",
+    "completedAt": "2026-10-12 20:02:22",
+    "retentionDays": 7
+  },
+  "productionSnapshotRestoreTested": false
+}

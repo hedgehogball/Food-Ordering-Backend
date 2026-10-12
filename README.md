@@ -1,8 +1,14 @@
 # 链家烧烤 · 独立后端
 
-微信小程序点餐后端，支持登录、01～36 桌同桌多人点餐、到店自取、厨房接单、门店收银、营业设置和经营统计。使用 Node.js 22.9+、MySQL 5.7 / 8.0，可独立部署到微信云托管，HTTP 端口默认 **8080**。
+微信小程序点餐后端，支持登录、01～24 桌同桌多人点餐、到店自取、厨房接单、门店收银、营业设置和经营统计。使用 Node.js 22.9+、MySQL 5.7 / 8.0，可独立部署到微信云托管，HTTP 端口默认 **8080**。
 
 从 [Food-Ordering-Mini-Program](https://github.com/hedgehogball/Food-Ordering-Mini-Program) 的 [08a79b1](https://github.com/hedgehogball/Food-Ordering-Mini-Program/commit/08a79b187b02266e9a79908c89661a04094bf59a) 提取，业务程序放入 `src`，不依赖小程序目录或云函数 SDK。本仓库提供数据库结构与默认初始化数据，不包含线上数据库备份。当前使用到店收款，未接入微信在线支付；厨房小票有持久化任务队列与人工打印登记，尚未连接打印机。
+
+## 手机验收与数据维护
+
+`/api/operations` 新增 `acceptanceGet` / `acceptanceSave`：授权店员可查看，只有店主可逐项确认；10 项检查默认待验证，需现场备注、确认和版本号，不自动创建订单或伪造收款。技术验证证据保存于 `src/verification-report.json`，与人工通过数分别显示。小程序扫码入口和专用手机值守功能位于前端仓库。
+
+菜单选桌与新加入限制为 01～24；旧25～36桌仅恢复原成员原单、读取和善后结账，历史不删除。新增 `npm run db:backup` 与 `npm run db:check-restore`，备份六表至权限受限目录、附 SHA256，恢复固定在专用本地33308的新测试库，禁止生产覆盖。详见 [数据维护说明](docs/data-maintenance.md)。云端发布前快照已成功，生产快照的独立恢复演练仍待完成。
 
 ## 目录
 
@@ -17,7 +23,7 @@ src/
   dining/             菜单、堂食规则、同桌账单服务
 database/
   schema.sql          六张业务表、生成列和索引
-  seed.sql            36 个桌号、默认营业设置
+  seed.sql            24 个桌号、默认营业设置
   README.md           数据库初始化和旧库升级说明
 scripts/              数据库初始化、集成测试入口
 tests/                HTTP、业务规则、实际 MySQL 集成测试

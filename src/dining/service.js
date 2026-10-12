@@ -4,17 +4,23 @@ const domain = require('./domain');
 function createService(db, staffIds = [], options = {}) {
   return async function handle(event, actor) {
     if (!actor) domain.fail('UNAUTHENTICATED', '请在微信中重新打开小程序');
-    const table = domain.tableNumber(event.table);
     const isStaff = staffIds.includes(actor);
     if (!['join', 'get', 'submit', 'checkout', 'cancelCheckout', 'staffGet', 'confirmPaid'].includes(event.action)) domain.fail('ACTION_INVALID', '不支持的操作');
     if (['staffGet', 'confirmPaid'].includes(event.action) && !isStaff) domain.fail('FORBIDDEN', '仅门店收银员可以使用此功能');
+    const retired = /^(?:2[5-9]|3[0-6])$/.test(String(event.table || ''));
+    // Retired tables can only recover an existing member's bill or be settled by staff.
+    // This exception never permits a new join or a new dish submission.
+    const existingSession = typeof event.sessionId === 'string' && /^[a-zA-Z0-9:_-]{1,100}$/.test(event.sessionId);
+    const legacyAllowed = retired && event.action !== 'join' && (existingSession || (isStaff && event.action === 'staffGet'));
+    if (retired && ['staffGet', 'confirmPaid', 'cancelCheckout'].includes(event.action) && !isStaff) domain.fail('FORBIDDEN', '仅门店收银员可以处理旧桌账单');
+    const table = legacyAllowed ? String(event.table) : domain.tableNumber(event.table);
     const nextId = crypto.randomUUID();
     const now = Date.now();
     return db.runTransaction(async tx => {
       const tableDoc = tx.collection('dining_tables').doc(table);
       const tableResult = await tableDoc.get();
       const pointer = tableResult.data;
-      if (!pointer) domain.fail('NOT_CONFIGURED', '桌台尚未初始化，请联系门店');
+      if (!pointer && !legacyAllowed) domain.fail('NOT_CONFIGURED', '桌台尚未初始化，请联系门店');
       let session;
       let changed = false;
       if (event.action === 'join') {
@@ -32,13 +38,18 @@ function createService(db, staffIds = [], options = {}) {
         }
         changed = domain.join(session, actor) || changed;
       } else {
-        const sessionId = event.sessionId || (event.action === 'staffGet' ? pointer.sessionId : '');
+        const sessionId = event.sessionId || (event.action === 'staffGet' && pointer ? pointer.sessionId : '');
         if (!sessionId) domain.fail('SESSION_INVALID', '本桌暂无用餐记录，请先加入点单');
         session = (await tx.collection('dining_sessions').doc(sessionId).get()).data;
+        if (!session && legacyAllowed && event.action === 'submit') domain.fail('TABLE_RETIRED_NOT_COMMITTED', '原桌号已停用，此次提交未入账，请重新选择 01–24 桌');
         if (!session || session.table !== table) domain.fail('SESSION_INVALID', '桌台记录已变化，请重新扫码');
         if (!isStaff || !['staffGet', 'confirmPaid', 'cancelCheckout'].includes(event.action)) domain.member(session, actor);
         if (event.action === 'submit') {
           const previous = session.orders.some(order => order.actor === actor && order.requestId === event.requestId);
+          if (legacyAllowed && !previous) {
+            if (typeof event.requestId !== 'string' || !/^[a-zA-Z0-9:_-]{8,100}$/.test(event.requestId)) domain.fail('TOKEN_INVALID', '请重新打开提交页面');
+            domain.fail('TABLE_RETIRED_NOT_COMMITTED', '原桌号已停用，此次提交未入账，请重新选择 01–24 桌');
+          }
           if (!previous && options.beforeNewSubmit) await options.beforeNewSubmit(event, tx, now);
           changed = domain.submit(session, actor, event, now);
         }

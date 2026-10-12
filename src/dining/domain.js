@@ -6,7 +6,7 @@ class BusinessError extends Error {
 function fail(code, message) { throw new BusinessError(code, message); }
 function tableNumber(value) {
   const text = String(value || '');
-  if (!/^\d{1,2}$/.test(text) || Number(text) < 1 || Number(text) > 36) fail('TABLE_INVALID', '请选择有效桌号（01–36 桌）');
+  if (!/^\d{1,2}$/.test(text) || Number(text) < 1 || Number(text) > 24) fail('TABLE_INVALID', '请选择有效桌号（01–24 桌）');
   return text.padStart(2, '0');
 }
 function member(session, actor) {

@@ -87,15 +87,23 @@ const { dishes } = require('../../src/dining/menu');
     // Valid large bills exercise response sizing rather than only tiny example orders.
     const broadItems = dishes.filter(dish => !dish.soldOut).flatMap(dish => dish.options.map(option => ({ dishId: dish.id, option, quantity: Math.ceil((dish.minQuantity || 1) / dish.options.length) })));
     const broadTotal = broadItems.reduce((sum, item) => sum + dishes.find(dish => dish.id === item.dishId).price * item.quantity, 0);
-    for (let number = 20; number <= 36; number++) {
-      const table = String(number), time = Date.now();
+    for (let number = 8; number <= 24; number++) {
+      const table = String(number).padStart(2, '0'), time = Date.now();
       const busy = domain.newSession(table, require('node:crypto').randomUUID(), time);
       domain.join(busy, 'load-guest');
       for (let index = 0; index < 20; index++) domain.submit(busy, 'load-guest', { requestId: 'load:' + number + ':' + index, items: broadItems, note: '厨房忙时容量验证', expectedTotal: broadTotal }, time);
       await pool.execute('INSERT INTO lj_dining_sessions (id,document) VALUES (?,?)', [busy.id, JSON.stringify(busy)]);
       await pool.execute('UPDATE lj_dining_tables SET document=? WHERE id=?', [JSON.stringify({ id: table, sessionId: busy.id }), table]);
     }
+    const retired = domain.newSession('25', require('node:crypto').randomUUID(), Date.now());
+    domain.join(retired, 'legacy-guest');
+    domain.submit(retired, 'legacy-guest', { requestId: 'legacy:retired-25', note: '', items: order.items, expectedTotal: order.expectedTotal }, Date.now());
+    await pool.execute('INSERT INTO lj_dining_sessions (id,document) VALUES (?,?)', [retired.id, JSON.stringify(retired)]);
+    await pool.execute('INSERT INTO lj_dining_tables (id,document) VALUES (?,?)', ['25', JSON.stringify({ id: '25', sessionId: retired.id })]);
     const largeDashboard = await operations.handle({ action: 'dashboard' }, 'cashier');
+    assert.equal(largeDashboard.tables.some(session => session.table === '25'), false, 'retired tables stay out of the active workbench');
+    const [retained] = await pool.execute('SELECT document FROM lj_dining_sessions WHERE id=?', [retired.id]);
+    assert.equal(retained.length, 1, 'retired table history is not deleted');
     assert.equal(largeDashboard.truncated, true);
     assert.ok(Buffer.byteLength(JSON.stringify(largeDashboard), 'utf8') < 601000, 'cloud dashboard must stay bounded for valid large bills');
     assert.equal(largeDashboard.printJobs.some(job => job.lines), false);

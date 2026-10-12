@@ -48,10 +48,34 @@ test('trusted identity, table isolation and private identifiers are enforced', a
   await assert.rejects(handle({ action: 'get', table: '08', sessionId: session.id, actor: 'alice' }, 'mallory'), rejected('FORBIDDEN'));
   await assert.rejects(handle({ action: 'get', table: '09', sessionId: session.id }, 'alice'), rejected('SESSION_INVALID'));
   await assert.rejects(handle(order(session, 'request:outsider'), 'mallory'), rejected('FORBIDDEN'));
-  await assert.rejects(handle({ action: 'join', table: '37' }, 'alice'), rejected('TABLE_INVALID'));
+  assert.equal((await handle({ action: 'join', table: '24' }, 'alice')).table, '24');
+  for (const table of ['25','36','37']) await assert.rejects(handle({ action: 'join', table }, 'alice'), rejected('TABLE_INVALID'));
   await assert.rejects(handle({ action: 'join', table: '08', actor: 'alice' }, ''), rejected('UNAUTHENTICATED'));
   const publicValue = JSON.stringify(await handle({ action: 'get', table: '08', sessionId: session.id }, 'alice'));
   assert.doesNotMatch(publicValue, /alice|fingerprint|requestId|"actor"/);
+});
+test('retired table recovery only returns an existing matching submission and allows protected settlement', async () => {
+  const { handle, db } = setup();
+  const domain = require('../src/dining/domain');
+  const legacy = domain.newSession('36', 'legacy-session-36', Date.now());domain.join(legacy, 'alice');
+  const original = order(legacy, 'legacy:original');domain.submit(legacy, 'alice', original, Date.now());
+  db.values.set('dining_tables/36', { sessionId: legacy.id });db.values.set('dining_sessions/' + legacy.id, legacy);
+  const recovered = await handle(original, 'alice');assert.equal(recovered.orders.length, 1);assert.equal(recovered.total, 1300);
+  await assert.rejects(handle({ action: 'join', table: '36', sessionId: legacy.id }, 'alice'), rejected('TABLE_INVALID'));
+  await assert.rejects(handle(order(legacy, 'legacy:new'), 'alice'), rejected('TABLE_RETIRED_NOT_COMMITTED'));
+  await assert.rejects(handle({ ...original, sessionId: 'legacy-missing' }, 'alice'), rejected('TABLE_RETIRED_NOT_COMMITTED'));
+  await assert.rejects(handle({ ...original, note: 'changed' }, 'alice'), rejected('TOKEN_REUSED'));
+  await assert.rejects(handle(original, 'mallory'), rejected('FORBIDDEN'));
+  await assert.rejects(handle({ action: 'get', table: '36' }, 'alice'), rejected('TABLE_INVALID'));
+  assert.equal((await handle({ action: 'get', table: '36', sessionId: legacy.id }, 'alice')).orders.length, 1);
+  const checkout = await handle({ action: 'checkout', table: '36', sessionId: legacy.id, revision: recovered.revision }, 'alice');
+  const confirm = { action: 'confirmPaid', table: '36', sessionId: legacy.id, revision: checkout.revision, expectedTotal: checkout.total };
+  await assert.rejects(handle(confirm, 'alice'), rejected('FORBIDDEN'));
+  await assert.rejects(handle({ action: 'cancelCheckout', table: '36', sessionId: legacy.id, revision: checkout.revision }, 'alice'), rejected('FORBIDDEN'));
+  assert.equal((await handle({ action: 'staffGet', table: '36' }, 'cashier')).id, legacy.id);
+  const paid = await handle(confirm, 'cashier');assert.equal(paid.status, 'paid');
+  assert.equal((await handle(original, 'alice')).orders.length, 1);
+  assert.equal(db.values.get('dining_sessions/' + legacy.id).orders.length, 1);
 });
 test('server recomputes price and rejects invalid cart, options and sold-out items', async () => {
   const { handle } = setup();

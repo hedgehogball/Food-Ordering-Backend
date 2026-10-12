@@ -2,6 +2,7 @@
 const crypto = require('node:crypto');
 const { fail, present } = require('./dining/domain');
 const { decode, transaction } = require('./database');
+const { createAcceptance } = require('./acceptance');
 const DAY = 86400000;
 const OFFSET = 8 * 3600000;
 const STAGES = ['new', 'cooking', 'ready'];
@@ -87,6 +88,7 @@ function summarizeStats(submitted, paid, start, end, truncated = false) {
     receipts: receipts.sort((a, b) => b.paidAt - a.paidAt), truncated };
 }
 function createOperations(pool, { roleOf = () => 'customer', now = () => Date.now() } = {}) {
+  const acceptance = createAcceptance(pool, { now });
   async function readSettings(sql = pool, lock = false) {
     const [rows] = await sql.execute('SELECT document FROM lj_settings WHERE id=?' + (lock ? ' FOR UPDATE' : ''), ['shop']);
     return rows.length ? { ...defaultSettings(), ...decode(rows[0].document) } : defaultSettings();
@@ -125,7 +127,7 @@ function createOperations(pool, { roleOf = () => 'customer', now = () => Date.no
     });
   }
   async function dashboard(role) {
-    const [diningRows] = await pool.query("SELECT s.document FROM lj_dining_tables t JOIN lj_dining_sessions s ON s.id=CONVERT(JSON_UNQUOTE(JSON_EXTRACT(t.document,'$.sessionId')) USING ascii) COLLATE ascii_bin ORDER BY t.id");
+    const [diningRows] = await pool.query("SELECT s.document FROM lj_dining_tables t JOIN lj_dining_sessions s ON s.id=CONVERT(JSON_UNQUOTE(JSON_EXTRACT(t.document,'$.sessionId')) USING ascii) COLLATE ascii_bin WHERE t.id BETWEEN '01' AND '24' ORDER BY t.id");
     const sessions = diningRows.map(row => decode(row.document)).filter(session => session.status !== 'paid');
     let tablesTruncated = false;
     // The staff queue shows the oldest actionable batches first; completed kitchen batches
@@ -167,6 +169,7 @@ function createOperations(pool, { roleOf = () => 'customer', now = () => Date.no
     }
     const role = roleOf(actor, context);
     if (!['cashier', 'owner'].includes(role)) fail('FORBIDDEN', '仅门店店员可以使用此功能');
+    if (['acceptanceGet', 'acceptanceSave'].includes(event.action)) return acceptance.handle(event, actor, role);
     if (event.action === 'dashboard') return dashboard(role);
     if (event.action === 'saveSettings') {
       if (role !== 'owner') fail('FORBIDDEN', '仅店主可以修改营业设置');

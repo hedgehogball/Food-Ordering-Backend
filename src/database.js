@@ -74,7 +74,7 @@ async function initialize(pool) {
       }
     }
   }
-  for (let n = 1; n <= 36; n++) {
+  for (let n = 1; n <= 24; n++) {
     const id = String(n).padStart(2, '0');
     await pool.execute('INSERT IGNORE INTO lj_dining_tables (id,document) VALUES (?,?)', [id, JSON.stringify({ id, sessionId: '' })]);
   }

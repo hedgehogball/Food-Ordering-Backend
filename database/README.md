@@ -1,6 +1,6 @@
 # 数据库结构与初始化
 
-后端使用 MySQL 5.7 / 8.0、InnoDB 和 JSON 字段。这里提供可重复执行的建表与默认数据脚本，包含 01～36 桌、默认营业设置；不包含线上用户、订单、手机号或店主账号。
+后端使用 MySQL 5.7 / 8.0、InnoDB 和 JSON 字段。这里提供可重复执行的建表与默认数据脚本，包含 01～24 桌、默认营业设置；不包含线上用户、订单、手机号或店主账号。
 
 ## 新数据库
 
@@ -33,7 +33,7 @@ SOURCE C:/projects/Food-Ordering-Backend/database/seed.sql;
 | 表 | 用途 | 关键字段 / 索引 |
 | --- | --- | --- |
 | `lj_users` | 登录记录 | 64 位账号标识、首次与最近登录时间 |
-| `lj_dining_tables` | 36 桌的当前餐次指针 | `id` 为 01～36，JSON 内有 `sessionId` |
+| `lj_dining_tables` | 24 桌的当前餐次指针 | `id` 为 01～24，JSON 内有 `sessionId` |
 | `lj_dining_sessions` | 同桌成员、每次加菜、合并账单、收款状态 | `document`；创建 / 修改 / 收款时间的生成列和索引 |
 | `lj_takeaway` | 自取订单 | `actor + request_id` 唯一索引；本人历史及收款日期索引 |
 | `lj_settings` | 营业和预约设置 | `shop` 文档；`version` 用于并发更新检查 |
@@ -46,5 +46,9 @@ SOURCE C:/projects/Food-Ordering-Backend/database/seed.sql;
 ## 已有环境
 
 启动初始化与 seed 都不会重置已选桌号、当前餐次或营业设置；缺失默认行才补充。旧数据由 `src/database.js` 增加缺失的生成列和报表索引，保留原文档。这里的 schema 不是生产库备份，也不自动复制原服务的数据。
+
+当前有效桌号为 01～24。由 36 桌缩减后，初始化不会删除旧 25～36 桌指针或任何历史餐次；这些桌号不能再扫码加入或提交新点餐，当前工作台也只查询 01～24 桌。既有历史收款仍纳入统计。
+
+遗留账单仍可通过受保护的 `/api/table-order` 处理：原成员携带原 `table,sessionId` 调用 `get/checkout`；携带匹配本人原 `requestId` 与提交内容的 `submit` 仅恢复已入账结果，不创建菜品。若不存在该提交，返回 `TABLE_RETIRED_NOT_COMMITTED`；手机才会释放挂起记录并保留餐袋。店员通过 `staffGet` 获取旧桌原餐次，再对已申请结账且实际收款的账单调用 `confirmPaid`（原 `sessionId,revision,expectedTotal`）；旧桌的 `cancelCheckout` 只允许店员调用。`join` 继续严格限制 01～24。
 
 测试使用 `127.0.0.1:33308` 的专用本地 MySQL 实例，每次创建独立的 `lj_` 前缀测试库。`npm run test:integration` 验证 SQL 初始化幂等、JSON 生成列、同桌并发、权限与持久化，不读取 `.env` 的生产连接配置。

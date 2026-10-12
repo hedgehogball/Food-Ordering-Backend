@@ -36,17 +36,20 @@ async function metadata(pool, table) {
     const [defaults] = await sql.query('SELECT document FROM lj_settings WHERE id="shop"');
     assert.deepEqual(decode(defaults[0].document), defaultSettings());
     const [seats] = await sql.query('SELECT id,document FROM lj_dining_tables ORDER BY id');
-    assert.equal(seats.length, 36);
+    assert.equal(seats.length, 24);
     seats.forEach((row, index) => assert.deepEqual(decode(row.document), { id: String(index + 1).padStart(2, '0'), sessionId: '' }));
     for (const table of ['lj_users', 'lj_dining_sessions', 'lj_takeaway', 'lj_print_jobs']) {
       const [rows] = await sql.query(`SELECT COUNT(*) AS total FROM ${table}`);
       assert.equal(rows[0].total, 0, 'seed contains no customer/order data');
     }
     await sql.execute('UPDATE lj_dining_tables SET document=? WHERE id=?', [JSON.stringify({ id: '03', sessionId: 'keep-session' }), '03']);
+    await sql.execute('INSERT INTO lj_dining_tables (id,document) VALUES (?,?)', ['36', JSON.stringify({ id: '36', sessionId: 'legacy-session' })]);
     await sql.execute('UPDATE lj_settings SET document=? WHERE id=?', [JSON.stringify({ ...defaultSettings(), version: 2, open: false }), 'shop']);
     await sql.query(schema); await sql.query(seed); await initialize(sql);
     const [preserved] = await sql.query('SELECT document FROM lj_dining_tables WHERE id="03"');
     assert.equal(decode(preserved[0].document).sessionId, 'keep-session');
+    const [legacy] = await sql.query('SELECT document FROM lj_dining_tables WHERE id="36"');
+    assert.deepEqual(decode(legacy[0].document), { id: '36', sessionId: 'legacy-session' }, 'downsizing preserves retired table records');
     const [settings] = await sql.query('SELECT document FROM lj_settings WHERE id="shop"');
     assert.equal(decode(settings[0].document).version, 2); assert.equal(decode(settings[0].document).open, false);
     const doc = { createdAt: 1000, updatedAt: 2000, checkout: { paidAt: null } };
@@ -62,6 +65,6 @@ async function metadata(pool, table) {
     pickup.order.settledAt = 4000;
     await sql.execute('UPDATE lj_takeaway SET document=? WHERE id=?', [JSON.stringify(pickup), 'schema-takeaway']);
     const [paid] = await sql.query('SELECT paid_at FROM lj_takeaway'); assert.equal(paid[0].paid_at, 4000);
-    console.log('PASS MySQL schema: SQL/startup parity, 36 default tables, no customer data, repeat-safe initialization, existing state preserved, generated payment dates');
+    console.log('PASS MySQL schema: SQL/startup parity, 24 default tables, no customer data, repeat-safe initialization, existing state preserved, generated payment dates');
   } finally { await sql.end(); await startup.end(); }
 })().catch(error => { console.error(error); process.exitCode = 1; });

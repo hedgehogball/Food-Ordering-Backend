@@ -27,16 +27,4 @@ INSERT IGNORE INTO lj_dining_tables (id,document) VALUES
   ('21','{"id":"21","sessionId":""}'),
   ('22','{"id":"22","sessionId":""}'),
   ('23','{"id":"23","sessionId":""}'),
-  ('24','{"id":"24","sessionId":""}'),
-  ('25','{"id":"25","sessionId":""}'),
-  ('26','{"id":"26","sessionId":""}'),
-  ('27','{"id":"27","sessionId":""}'),
-  ('28','{"id":"28","sessionId":""}'),
-  ('29','{"id":"29","sessionId":""}'),
-  ('30','{"id":"30","sessionId":""}'),
-  ('31','{"id":"31","sessionId":""}'),
-  ('32','{"id":"32","sessionId":""}'),
-  ('33','{"id":"33","sessionId":""}'),
-  ('34','{"id":"34","sessionId":""}'),
-  ('35','{"id":"35","sessionId":""}'),
-  ('36','{"id":"36","sessionId":""}');
+  ('24','{"id":"24","sessionId":""}');

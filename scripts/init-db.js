@@ -6,7 +6,7 @@ const { databaseConfig, initialize } = require('../src/database');
   try {
     pool = mysql.createPool(databaseConfig(process.env));
     await initialize(pool);
-    console.log('database_initialized: schema ready, 36 tables available; existing data preserved');
+    console.log('database_initialized: schema ready, 24 tables available; existing data preserved');
   } catch (_) {
     console.error('database_init_failed: check database settings and CREATE/ALTER permissions');
     process.exitCode = 1;
